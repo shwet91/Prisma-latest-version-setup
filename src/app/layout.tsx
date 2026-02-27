@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import AuthProvider from "@/components/auth/AuthProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
     type: "website",
   },
 
-  twitter: {  
+  twitter: {
     card: "summary_large_image",
     title: "Balance Hormones Naturally: PCOS, Thyroid Disorders",
     description: "Evidence-based hormonal care for PCOS & thyroid disorders.",
@@ -53,7 +54,7 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

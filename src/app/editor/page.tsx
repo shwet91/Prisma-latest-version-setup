@@ -1,4 +1,4 @@
-import MealPlanGrid from "@/componets/meal-plan/MealPlanGrid";
+import MealPlanGrid from "@/components/meal-plan/MealPlanGrid";
 
 export default function DashboardPage() {
   return <MealPlanGrid />;
