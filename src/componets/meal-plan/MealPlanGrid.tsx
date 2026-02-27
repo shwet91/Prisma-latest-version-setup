@@ -205,7 +205,18 @@ export default function MealPlanGrid() {
     MealCell
   > | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [copiedPlan, setCopiedPlan] = useState<WeekData | null>(null);
   const [showTemplateMenu, setShowTemplateMenu] = useState(false);
+  const [visibleDays, setVisibleDays] = useState<Set<DayOfWeek>>(
+    new Set(DAYS.map((d) => d.key)),
+  );
+  const [visibleMeals, setVisibleMeals] = useState<Set<MealType>>(
+    new Set(MEAL_SLOTS.map((m) => m.key)),
+  );
+  const [showDayPicker, setShowDayPicker] = useState(false);
+  const [showMealPicker, setShowMealPicker] = useState(false);
+  const dayPickerRef = useRef<HTMLDivElement>(null);
+  const mealPickerRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
 
@@ -460,13 +471,60 @@ export default function MealPlanGrid() {
       ) {
         setShowTemplateMenu(false);
       }
+      if (
+        dayPickerRef.current &&
+        !dayPickerRef.current.contains(e.target as Node)
+      ) {
+        setShowDayPicker(false);
+      }
+      if (
+        mealPickerRef.current &&
+        !mealPickerRef.current.contains(e.target as Node)
+      ) {
+        setShowMealPicker(false);
+      }
     }
-    if (showTemplateMenu) {
+    if (showTemplateMenu || showDayPicker || showMealPicker) {
       document.addEventListener("mousedown", handleClickOutside);
       return () =>
         document.removeEventListener("mousedown", handleClickOutside);
     }
-  }, [showTemplateMenu]);
+  }, [showTemplateMenu, showDayPicker, showMealPicker]);
+
+  const toggleDay = (day: DayOfWeek) => {
+    setVisibleDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(day)) {
+        if (next.size <= 1) {
+          showToast("Need at least 1 day");
+          return prev;
+        }
+        next.delete(day);
+      } else {
+        next.add(day);
+      }
+      return next;
+    });
+  };
+
+  const toggleMeal = (meal: MealType) => {
+    setVisibleMeals((prev) => {
+      const next = new Set(prev);
+      if (next.has(meal)) {
+        if (next.size <= 1) {
+          showToast("Need at least 1 meal");
+          return prev;
+        }
+        next.delete(meal);
+      } else {
+        next.add(meal);
+      }
+      return next;
+    });
+  };
+
+  const activeDays = DAYS.filter((d) => visibleDays.has(d.key));
+  const activeMeals = MEAL_SLOTS.filter((m) => visibleMeals.has(m.key));
 
   return (
     <div className="h-screen flex flex-col bg-linear-to-br from-orange-50 via-white to-orange-50/30 overflow-hidden">
@@ -574,6 +632,56 @@ export default function MealPlanGrid() {
             )}
           </div>
           <button
+            onClick={() => {
+              setCopiedPlan(JSON.parse(JSON.stringify(weekData)));
+              showToast("Entire meal plan copied!");
+            }}
+            className={`px-2.5 py-1.5 text-[10px] font-medium border rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+              copiedPlan
+                ? "text-green-600 bg-green-50 border-green-200 hover:bg-green-100"
+                : "text-orange-600 bg-orange-50 border-orange-200 hover:bg-orange-100"
+            }`}
+          >
+            <svg
+              className="w-3 h-3"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+            {copiedPlan ? "✓ Plan Copied" : "Copy Plan"}
+          </button>
+          {copiedPlan && (
+            <button
+              onClick={() => {
+                setWeekData(JSON.parse(JSON.stringify(copiedPlan)));
+                showToast("Meal plan pasted!");
+              }}
+              className="px-2.5 py-1.5 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer flex items-center gap-1 animate-pulse"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+                />
+              </svg>
+              Paste Plan
+            </button>
+          )}
+          <button
             onClick={clearAll}
             className="px-2.5 py-1.5 text-[10px] font-medium text-red-500 bg-red-50 border border-red-200 rounded-md hover:bg-red-100 transition-colors cursor-pointer"
           >
@@ -641,9 +749,137 @@ export default function MealPlanGrid() {
           </kbd>{" "}
           Deselect
         </span>
-        <span className="ml-auto text-orange-400">
-          Double-click cell to edit · Right-click row/column headers to copy
-        </span>
+
+        <div className="ml-auto flex items-center gap-2">
+          {/* Day picker */}
+          <div className="relative" ref={dayPickerRef}>
+            <button
+              onClick={() => setShowDayPicker((v) => !v)}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
+                showDayPicker
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "text-orange-600 bg-white border-orange-200 hover:bg-orange-50"
+              }`}
+            >
+              Days ({activeDays.length}/7)
+            </button>
+            {showDayPicker && (
+              <div className="absolute top-full right-0 mt-1 z-50 bg-white rounded-lg shadow-xl border border-orange-200 py-1.5 w-40">
+                <div className="px-3 py-1 text-[9px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Toggle Days
+                </div>
+                {DAYS.map((day) => (
+                  <button
+                    key={day.key}
+                    onClick={() => toggleDay(day.key)}
+                    className="w-full text-left px-3 py-1 hover:bg-orange-50 transition-colors cursor-pointer flex items-center justify-between"
+                  >
+                    <span
+                      className={`text-[11px] ${visibleDays.has(day.key) ? "font-medium text-gray-800" : "text-gray-400"}`}
+                    >
+                      {day.label}
+                    </span>
+                    <span
+                      className={`text-[11px] ${visibleDays.has(day.key) ? "text-green-500" : "text-gray-300"}`}
+                    >
+                      {visibleDays.has(day.key) ? "✓" : "○"}
+                    </span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 mt-1 pt-1 px-3 flex gap-1">
+                  <button
+                    onClick={() =>
+                      setVisibleDays(new Set(DAYS.map((d) => d.key)))
+                    }
+                    className="text-[9px] text-orange-500 hover:underline cursor-pointer"
+                  >
+                    All
+                  </button>
+                  <span className="text-gray-300">·</span>
+                  <button
+                    onClick={() =>
+                      setVisibleDays(
+                        new Set<DayOfWeek>([
+                          "monday",
+                          "tuesday",
+                          "wednesday",
+                          "thursday",
+                          "friday",
+                        ]),
+                      )
+                    }
+                    className="text-[9px] text-orange-500 hover:underline cursor-pointer"
+                  >
+                    Weekdays
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Meal picker */}
+          <div className="relative" ref={mealPickerRef}>
+            <button
+              onClick={() => setShowMealPicker((v) => !v)}
+              className={`px-2 py-0.5 rounded text-[10px] font-medium border transition-colors cursor-pointer ${
+                showMealPicker
+                  ? "bg-orange-500 text-white border-orange-500"
+                  : "text-orange-600 bg-white border-orange-200 hover:bg-orange-50"
+              }`}
+            >
+              Meals ({activeMeals.length}/7)
+            </button>
+            {showMealPicker && (
+              <div className="absolute top-full right-0 mt-1 z-50 bg-white rounded-lg shadow-xl border border-orange-200 py-1.5 w-48">
+                <div className="px-3 py-1 text-[9px] font-semibold text-gray-400 uppercase tracking-wider">
+                  Toggle Meals
+                </div>
+                {MEAL_SLOTS.map((meal) => (
+                  <button
+                    key={meal.key}
+                    onClick={() => toggleMeal(meal.key)}
+                    className="w-full text-left px-3 py-1 hover:bg-orange-50 transition-colors cursor-pointer flex items-center justify-between"
+                  >
+                    <span
+                      className={`text-[11px] ${visibleMeals.has(meal.key) ? "font-medium text-gray-800" : "text-gray-400"}`}
+                    >
+                      {meal.label}
+                      <span className="text-[9px] text-gray-400 ml-1">
+                        {meal.time}
+                      </span>
+                    </span>
+                    <span
+                      className={`text-[11px] ${visibleMeals.has(meal.key) ? "text-green-500" : "text-gray-300"}`}
+                    >
+                      {visibleMeals.has(meal.key) ? "✓" : "○"}
+                    </span>
+                  </button>
+                ))}
+                <div className="border-t border-gray-100 mt-1 pt-1 px-3 flex gap-1">
+                  <button
+                    onClick={() =>
+                      setVisibleMeals(new Set(MEAL_SLOTS.map((m) => m.key)))
+                    }
+                    className="text-[9px] text-orange-500 hover:underline cursor-pointer"
+                  >
+                    All
+                  </button>
+                  <span className="text-gray-300">·</span>
+                  <button
+                    onClick={() =>
+                      setVisibleMeals(
+                        new Set<MealType>(["breakfast", "lunch", "dinner"]),
+                      )
+                    }
+                    className="text-[9px] text-orange-500 hover:underline cursor-pointer"
+                  >
+                    3 Meals
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Grid */}
@@ -662,7 +898,7 @@ export default function MealPlanGrid() {
                   </span>
                 </div>
               </th>
-              {DAYS.map((day) => (
+              {activeDays.map((day) => (
                 <th
                   key={day.key}
                   className="bg-orange-500 text-white text-[11px] font-semibold p-2 border border-orange-400 text-center cursor-pointer hover:bg-orange-600 transition-colors"
@@ -717,8 +953,9 @@ export default function MealPlanGrid() {
                         ⤵
                       </button>
                       <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 z-40 bg-white rounded shadow-xl border border-orange-200 py-1 min-w-20">
-                        {DAYS.filter((d) => d.key !== day.key).map(
-                          (targetDay) => (
+                        {activeDays
+                          .filter((d) => d.key !== day.key)
+                          .map((targetDay) => (
                             <button
                               key={targetDay.key}
                               onClick={() =>
@@ -728,17 +965,30 @@ export default function MealPlanGrid() {
                             >
                               → {targetDay.short}
                             </button>
-                          ),
-                        )}
+                          ))}
                       </div>
                     </div>
+
+                    {/* Remove day */}
+                    {activeDays.length > 1 && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleDay(day.key);
+                        }}
+                        className="text-[9px] text-orange-200 hover:text-red-300 transition-colors cursor-pointer px-0.5 opacity-50 hover:opacity-100"
+                        title={`Hide ${day.label}`}
+                      >
+                        ✕
+                      </button>
+                    )}
                   </div>
                 </th>
               ))}
             </tr>
           </thead>
           <tbody>
-            {MEAL_SLOTS.map((meal) => (
+            {activeMeals.map((meal) => (
               <tr key={meal.key} className="group">
                 {/* Row header */}
                 <td
@@ -785,10 +1035,24 @@ export default function MealPlanGrid() {
                       </button>
                     )}
                   </div>
+
+                  {/* Remove meal row */}
+                  {activeMeals.length > 1 && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleMeal(meal.key);
+                      }}
+                      className="text-[9px] text-orange-300 hover:text-red-500 transition-colors cursor-pointer mt-0.5 opacity-0 group-hover:opacity-100"
+                      title={`Hide ${meal.label}`}
+                    >
+                      ✕ remove
+                    </button>
+                  )}
                 </td>
 
                 {/* Data cells */}
-                {DAYS.map((day) => {
+                {activeDays.map((day) => {
                   const isSelected =
                     selectedCell?.day === day.key &&
                     selectedCell?.meal === meal.key;

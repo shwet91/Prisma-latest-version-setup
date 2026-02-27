@@ -75,6 +75,43 @@ const pcosTemplate: MealTemplate = {
         note: "Caffeine-free",
       },
     },
+    tuesday: {
+      early_morning: {
+        diet: " my tues Warm water + cinnamon + 5 soaked almonds",
+        quantity: "1 glass",
+        note: "Empty stomach",
+      },
+      breakfast: {
+        diet: "Besan chilla + mint chutney",
+        quantity: "2 pieces",
+        note: "High protein, no maida",
+      },
+      mid_meal: {
+        diet: "Apple slices + peanut butter",
+        quantity: "1 small apple",
+        note: "Low GI fruit",
+      },
+      lunch: {
+        diet: "Brown rice + palak dal + cucumber raita",
+        quantity: "1 plate",
+        note: "Low GI carbs",
+      },
+      evening_snack: {
+        diet: "Roasted makhana",
+        quantity: "1 cup",
+        note: "Anti-inflammatory",
+      },
+      dinner: {
+        diet: "Grilled tofu + sautéed veggies + 1 roti",
+        quantity: "1 plate",
+        note: "Light, early dinner",
+      },
+      post_dinner: {
+        diet: "Chamomile tea",
+        quantity: "1 cup",
+        note: "Caffeine-free",
+      },
+    },
     wednesday: {
       early_morning: {
         diet: "Warm water + fenugreek seeds",
@@ -82,7 +119,7 @@ const pcosTemplate: MealTemplate = {
         note: "Soak seeds overnight",
       },
       breakfast: {
-        diet: "Vegetable poha + sprouts",
+        diet: " my wed Vegetable poha + sprouts",
         quantity: "1 bowl",
         note: "Add turmeric",
       },
@@ -106,6 +143,43 @@ const pcosTemplate: MealTemplate = {
         diet: "Turmeric milk (no sugar)",
         quantity: "1 glass",
         note: "Use jaggery if needed",
+      },
+    },
+    thursday: {
+      early_morning: {
+        diet: "Warm water + cinnamon + 5 soaked almonds",
+        quantity: "1 glass",
+        note: "Empty stomach",
+      },
+      breakfast: {
+        diet: "Besan chilla + mint chutney",
+        quantity: "2 pieces",
+        note: "High protein, no maida",
+      },
+      mid_meal: {
+        diet: "Apple slices + peanut butter",
+        quantity: "1 small apple",
+        note: "Low GI fruit",
+      },
+      lunch: {
+        diet: " my thus Brown rice + palak dal + cucumber raita",
+        quantity: "1 plate",
+        note: "Low GI carbs",
+      },
+      evening_snack: {
+        diet: "Roasted makhana",
+        quantity: "1 cup",
+        note: "Anti-inflammatory",
+      },
+      dinner: {
+        diet: "Grilled tofu + sautéed veggies + 1 roti",
+        quantity: "1 plate",
+        note: "Light, early dinner",
+      },
+      post_dinner: {
+        diet: "Chamomile tea",
+        quantity: "1 cup",
+        note: "Caffeine-free",
       },
     },
     friday: {
@@ -135,7 +209,7 @@ const pcosTemplate: MealTemplate = {
         note: "Pumpkin, sunflower, flax",
       },
       dinner: {
-        diet: "Stuffed capsicum + soup",
+        diet: " my friday Stuffed capsicum + soup",
         quantity: "1 plate",
         note: "Paneer-stuffed",
       },
@@ -143,6 +217,80 @@ const pcosTemplate: MealTemplate = {
         diet: "Warm milk + nutmeg",
         quantity: "1 glass",
         note: "Aids sleep",
+      },
+    },
+    saturday: {
+      early_morning: {
+        diet: "Warm water + cinnamon + 5 soaked almonds",
+        quantity: "1 glass",
+        note: "Empty stomach",
+      },
+      breakfast: {
+        diet: "Besan chilla + mint chutney",
+        quantity: "2 pieces",
+        note: "High protein, no maida",
+      },
+      mid_meal: {
+        diet: "Apple slices + peanut butter",
+        quantity: "1 small apple",
+        note: "Low GI fruit",
+      },
+      lunch: {
+        diet: "Brown rice + palak dal + cucumber raita",
+        quantity: "1 plate",
+        note: "Low GI carbs",
+      },
+      evening_snack: {
+        diet: "Roasted makhana",
+        quantity: "1 cup",
+        note: "Anti-inflammatory",
+      },
+      dinner: {
+        diet: "Grilled tofu + sautéed veggies + 1 roti",
+        quantity: "1 plate",
+        note: "Light, early dinner",
+      },
+      post_dinner: {
+        diet: " my saturday Chamomile tea",
+        quantity: "1 cup",
+        note: "Caffeine-free",
+      },
+    },
+    sunday: {
+      early_morning: {
+        diet: " my sunday Warm water + cinnamon + 5 soaked almonds",
+        quantity: "1 glass",
+        note: "Empty stomach",
+      },
+      breakfast: {
+        diet: "Besan chilla + mint chutney",
+        quantity: "2 pieces",
+        note: "High protein, no maida",
+      },
+      mid_meal: {
+        diet: "Apple slices + peanut butter",
+        quantity: "1 small apple",
+        note: "Low GI fruit",
+      },
+      lunch: {
+        diet: "Brown rice + palak dal + cucumber raita",
+        quantity: "1 plate",
+        note: "Low GI carbs",
+      },
+      evening_snack: {
+        diet: "Roasted makhana",
+        quantity: "1 cup",
+        note: "Anti-inflammatory",
+      },
+      dinner: {
+        diet: "Grilled tofu + sautéed veggies + 1 roti",
+        quantity: "1 plate",
+        note: "Light, early dinner",
+      },
+      post_dinner: {
+        diet: "Chamomile tea",
+        quantity: "1 cup",
+        note: "Caffeine-free",
       },
     },
   },
