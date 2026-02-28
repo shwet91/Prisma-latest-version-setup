@@ -1,139 +1,23 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Client, ClientMealPlan } from "@/types/client";
+import { useCallback } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import { ClientMealPlan } from "@/types/client";
 import { DashboardNavbar } from "@/components/dashboard";
 import { ClientList } from "@/components/dashboard";
 import { ClientDetailPanel } from "@/components/dashboard";
 import CreateClientModal from "./CreateClientModal";
+import {
+  selectFilteredClients,
+  selectSelectedClient,
+  selectSelectedClientMealPlans,
+  selectClient,
+  setSearchQuery,
+  selectClientsLoading,
+  selectClientsError,
+} from "@/store/features/clientSlice";
 
-// ── Mock data (replace with API calls later) ────────────────────────────────
-const MOCK_CLIENTS: Client[] = [
-  {
-    id: "1",
-    name: "Priya Sharma",
-    email: "priya.sharma@email.com",
-    phone: "+91 98765 43210",
-    age: 28,
-    gender: "female",
-    condition: "PCOS",
-    joinedDate: "2025-12-15",
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Ananya Gupta",
-    email: "ananya.g@email.com",
-    phone: "+91 87654 32109",
-    age: 34,
-    gender: "female",
-    condition: "Thyroid",
-    joinedDate: "2026-01-08",
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Deepika Patel",
-    email: "deepika.p@email.com",
-    phone: "+91 76543 21098",
-    age: 31,
-    gender: "female",
-    condition: "Peri-menopause",
-    joinedDate: "2026-02-01",
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Meera Joshi",
-    email: "meera.j@email.com",
-    phone: "+91 65432 10987",
-    age: 26,
-    gender: "female",
-    condition: "PCOS",
-    joinedDate: "2025-11-20",
-    status: "inactive",
-  },
-  {
-    id: "5",
-    name: "Kavita Reddy",
-    email: "kavita.r@email.com",
-    phone: "+91 54321 09876",
-    age: 39,
-    gender: "female",
-    condition: "Thyroid",
-    joinedDate: "2026-02-10",
-    status: "active",
-  },
-];
-
-const MOCK_MEAL_PLANS: Record<string, ClientMealPlan[]> = {
-  "1": [
-    {
-      id: "mp1",
-      clientId: "1",
-      title: "PCOS Recovery – Week 1",
-      status: "published",
-      weekStartDate: "2026-02-17",
-      createdAt: "2026-02-15",
-    },
-    {
-      id: "mp2",
-      clientId: "1",
-      title: "PCOS Recovery – Week 2",
-      status: "review",
-      weekStartDate: "2026-02-24",
-      createdAt: "2026-02-22",
-    },
-    {
-      id: "mp3",
-      clientId: "1",
-      title: "PCOS Recovery – Week 3",
-      status: "draft",
-      weekStartDate: "2026-03-03",
-      createdAt: "2026-02-28",
-    },
-  ],
-  "2": [
-    {
-      id: "mp4",
-      clientId: "2",
-      title: "Thyroid Support – Week 1",
-      status: "published",
-      weekStartDate: "2026-02-10",
-      createdAt: "2026-02-08",
-    },
-    {
-      id: "mp5",
-      clientId: "2",
-      title: "Thyroid Support – Week 2",
-      status: "draft",
-      weekStartDate: "2026-02-17",
-      createdAt: "2026-02-15",
-    },
-  ],
-  "3": [
-    {
-      id: "mp6",
-      clientId: "3",
-      title: "Peri-menopause Care – Week 1",
-      status: "published",
-      weekStartDate: "2026-02-03",
-      createdAt: "2026-02-01",
-    },
-  ],
-  "4": [],
-  "5": [
-    {
-      id: "mp7",
-      clientId: "5",
-      title: "Thyroid Nutrition – Week 1",
-      status: "review",
-      weekStartDate: "2026-02-24",
-      createdAt: "2026-02-22",
-    },
-  ],
-};
-// ─────────────────────────────────────────────────────────────────────────────
+import { useState } from "react";
 
 interface DashboardShellProps {
   userName: string;
@@ -146,42 +30,36 @@ export default function DashboardShell({
   userImage,
   userEmail,
 }: DashboardShellProps) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const dispatch = useDispatch();
+  const filteredClients = useSelector(selectFilteredClients);
+  const selectedClient = useSelector(selectSelectedClient);
+  const selectedMealPlans = useSelector(selectSelectedClientMealPlans);
+  const isLoading = useSelector(selectClientsLoading);
+  const error = useSelector(selectClientsError);
+
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
-  const filteredClients = useMemo(() => {
-    if (!searchQuery.trim()) return MOCK_CLIENTS;
-    const q = searchQuery.toLowerCase();
-    return MOCK_CLIENTS.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.condition.toLowerCase().includes(q) ||
-        c.phone.includes(q),
-    );
-  }, [searchQuery]);
-
-  const selectedMealPlans = selectedClient
-    ? (MOCK_MEAL_PLANS[selectedClient.id] ?? [])
-    : [];
-
-  const handleSearch = (query: string) => {
-    setSearchQuery(query);
-  };
+  const handleSearch = useCallback(
+    (query: string) => {
+      dispatch(setSearchQuery(query));
+    },
+    [dispatch],
+  );
 
   const handleCreateClient = () => {
     setIsCreateModalOpen(true);
   };
 
   const handleClientCreated = () => {
-    // TODO: Refetch clients from API when wired up
-    console.log("Client created — refresh list");
+    // Client is added to store via CreateClientModal dispatch — nothing extra needed
   };
 
-  const handleSelectClient = (client: Client) => {
-    setSelectedClient(client);
-  };
+  const handleSelectClient = useCallback(
+    (client: { id: string }) => {
+      dispatch(selectClient(client.id));
+    },
+    [dispatch],
+  );
 
   const handleViewMealPlanDetails = (mealPlan: ClientMealPlan) => {
     // TODO: Navigate to meal plan detail / editor
@@ -218,11 +96,47 @@ export default function DashboardShell({
               {filteredClients.length}
             </span>
           </div>
-          <ClientList
-            clients={filteredClients}
-            selectedClient={selectedClient}
-            onSelectClient={handleSelectClient}
-          />
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-12">
+              <svg
+                className="h-6 w-6 animate-spin text-indigo-500"
+                fill="none"
+                viewBox="0 0 24 24"
+              >
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                />
+              </svg>
+            </div>
+          )}
+
+          {/* Error state */}
+          {error && !isLoading && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-center text-sm text-red-600 dark:border-red-800 dark:bg-red-950/30 dark:text-red-400">
+              {error}
+            </div>
+          )}
+
+          {/* Client list */}
+          {!isLoading && !error && (
+            <ClientList
+              clients={filteredClients}
+              selectedClient={selectedClient}
+              onSelectClient={handleSelectClient}
+            />
+          )}
         </aside>
 
         {/* Right Panel – Client Details */}

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { RootState } from "@/store/store";
+import { addClient } from "@/store/features/clientSlice";
 
 interface CreateClientModalProps {
   isOpen: boolean;
@@ -35,6 +36,7 @@ export default function CreateClientModal({
   const [apiError, setApiError] = useState<string | null>(null);
 
   const userId = useSelector((state: RootState) => state.user.id);
+  const dispatch = useDispatch();
 
   if (!isOpen) return null;
 
@@ -106,6 +108,12 @@ export default function CreateClientModal({
         const data = await res.json();
         setApiError(data.error || "Failed to create client.");
         return;
+      }
+
+      const data = await res.json();
+      // Add the newly created client to the Redux store
+      if (data.client) {
+        dispatch(addClient(data.client));
       }
 
       // Success — reset form, close modal, notify parent

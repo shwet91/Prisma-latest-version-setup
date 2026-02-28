@@ -71,34 +71,47 @@ export default function ClientDetailPanel({
             <h3 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
               {client.name}
             </h3>
-            <p className="text-sm text-zinc-500 dark:text-zinc-400">
-              {client.condition}
-            </p>
+            {client.condition && (
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {client.condition}
+              </p>
+            )}
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-3">
-          <DetailItem label="Email" value={client.email} />
-          <DetailItem label="Phone" value={client.phone} />
-          <DetailItem label="Age" value={`${client.age} years`} />
+          {client.email && <DetailItem label="Email" value={client.email} />}
+          {client.phoneNo && (
+            <DetailItem label="Phone" value={client.phoneNo} />
+          )}
+          {client.age != null && (
+            <DetailItem label="Age" value={`${client.age} years`} />
+          )}
+          {client.gender && (
+            <DetailItem
+              label="Gender"
+              value={
+                client.gender.charAt(0).toUpperCase() + client.gender.slice(1)
+              }
+            />
+          )}
           <DetailItem
-            label="Gender"
-            value={
-              client.gender.charAt(0).toUpperCase() + client.gender.slice(1)
-            }
+            label="Joined"
+            value={new Date(client.createdAt).toLocaleDateString()}
           />
-          <DetailItem label="Joined" value={client.joinedDate} />
-          <DetailItem
-            label="Status"
-            value={
-              client.status.charAt(0).toUpperCase() + client.status.slice(1)
-            }
-            valueClassName={
-              client.status === "active"
-                ? "text-emerald-600 dark:text-emerald-400"
-                : "text-zinc-500"
-            }
-          />
+          {client.status && (
+            <DetailItem
+              label="Status"
+              value={
+                client.status.charAt(0).toUpperCase() + client.status.slice(1)
+              }
+              valueClassName={
+                client.status === "active"
+                  ? "text-emerald-600 dark:text-emerald-400"
+                  : "text-zinc-500"
+              }
+            />
+          )}
         </div>
       </div>
 

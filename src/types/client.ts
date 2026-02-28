@@ -1,13 +1,16 @@
 export interface Client {
   id: string;
   name: string;
-  email: string;
-  phone: string;
-  age: number;
-  gender: "male" | "female" | "other";
-  condition: string;
-  joinedDate: string;
-  status: "active" | "inactive";
+  email: string | null;
+  phoneNo: string | null;
+  age: number | null;
+  assignedToId: string;
+  createdAt: string;
+  updatedAt: string;
+  // Future fields (not in DB yet)
+  gender?: "male" | "female" | "other";
+  condition?: string;
+  status?: "active" | "inactive";
 }
 
 export interface ClientMealPlan {
