@@ -526,7 +526,7 @@ export default function MealPlanGrid() {
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
       {/* Header Bar */}
-      <div className="flex-none flex items-center justify-between px-4 py-2.5 bg-white/80 dark:bg-zinc-950/80 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
+      <div className="flex-none flex items-center justify-between px-4 py-2.5 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 shadow-sm">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
             <svg
@@ -611,7 +611,7 @@ export default function MealPlanGrid() {
             </button>
 
             {showTemplateMenu && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-56 animate-in fade-in">
+              <div className="absolute top-full right-0 mt-1 z-[999] bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-56 backdrop-blur-none ring-1 ring-black/5 dark:ring-white/5">
                 <div className="px-3 py-1 text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   Choose a template
                 </div>
@@ -913,7 +913,7 @@ export default function MealPlanGrid() {
               Days ({activeDays.length}/7)
             </button>
             {showDayPicker && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-40">
+              <div className="absolute top-full right-0 mt-1 z-[999] bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-40 backdrop-blur-none ring-1 ring-black/5 dark:ring-white/5">
                 <div className="px-3 py-1 text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   Toggle Days
                 </div>
@@ -979,7 +979,7 @@ export default function MealPlanGrid() {
               Meals ({activeMeals.length}/7)
             </button>
             {showMealPicker && (
-              <div className="absolute top-full right-0 mt-1 z-50 bg-white dark:bg-zinc-900 rounded-lg shadow-xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-48">
+              <div className="absolute top-full right-0 mt-1 z-[999] bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-48 backdrop-blur-none ring-1 ring-black/5 dark:ring-white/5">
                 <div className="px-3 py-1 text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                   Toggle Meals
                 </div>
@@ -1101,7 +1101,7 @@ export default function MealPlanGrid() {
                       >
                         ⤵
                       </button>
-                      <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 z-40 bg-white dark:bg-zinc-900 rounded shadow-xl border border-zinc-200 dark:border-zinc-700 py-1 min-w-20">
+                      <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 z-[999] bg-white dark:bg-zinc-900 rounded shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1 min-w-20 backdrop-blur-none ring-1 ring-black/5 dark:ring-white/5">
                         {activeDays
                           .filter((d) => d.key !== day.key)
                           .map((targetDay) => (
