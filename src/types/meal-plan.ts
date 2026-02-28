@@ -13,6 +13,22 @@ export interface MealCell {
   note: string;
 }
 
+export interface CellComment {
+  id: string;
+  authorId: string;
+  authorName: string;
+  text: string;
+  createdAt: string;
+  resolved?: boolean;
+}
+
+/** Comments keyed by "day::meal" e.g. "monday::breakfast" */
+export type MealPlanComments = Record<string, CellComment[]>;
+
+export function commentKey(day: DayOfWeek, meal: MealType): string {
+  return `${day}::${meal}`;
+}
+
 export type DayOfWeek =
   | "monday"
   | "tuesday"

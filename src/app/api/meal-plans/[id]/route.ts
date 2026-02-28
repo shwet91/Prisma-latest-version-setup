@@ -22,6 +22,11 @@ export async function GET(
 
     const mealPlan = await prisma.mealPlan.findUnique({
       where: { id },
+      include: {
+        reviewer: {
+          select: { id: true, name: true, email: true, image: true },
+        },
+      },
     });
 
     if (!mealPlan) {
@@ -31,8 +36,11 @@ export async function GET(
       );
     }
 
-    // Verify the meal plan belongs to the current user
-    if (mealPlan.createdById !== session.user.id) {
+    // Allow access if user is creator or reviewer
+    if (
+      mealPlan.createdById !== session.user.id &&
+      mealPlan.reviewerId !== session.user.id
+    ) {
       return NextResponse.json({ error: "Access denied." }, { status: 403 });
     }
 

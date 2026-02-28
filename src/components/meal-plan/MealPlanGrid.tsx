@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useSession } from "next-auth/react";
 import type { RootState, AppDispatch } from "@/store/store";
 import {
   updateCell as updateCellAction,
@@ -12,15 +13,27 @@ import {
   clearAll as clearAllAction,
   setStatus as setStatusAction,
   setMealPlanId,
+  setReviewerId as setReviewerIdAction,
+  addComment as addCommentAction,
+  toggleResolveComment as toggleResolveCommentAction,
+  deleteComment as deleteCommentAction,
 } from "@/store/features/mealSlice";
 import type {
   MealCell,
   DayOfWeek,
   MealType,
   WeekData,
+  CellComment,
 } from "@/types/meal-plan";
-import { DAYS, MEAL_SLOTS } from "@/types/meal-plan";
+import { DAYS, MEAL_SLOTS, commentKey } from "@/types/meal-plan";
 import { MEAL_TEMPLATES, getTemplateWeekData } from "@/lib/templates";
+
+interface PlatformUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  image: string | null;
+}
 
 interface CellPosition {
   day: DayOfWeek;
@@ -135,6 +148,284 @@ function CellEditor({ cell, onSave, onClose, position }: CellEditorProps) {
   );
 }
 
+/** Popover to view/add/resolve comments on a cell */
+function CommentPopover({
+  comments,
+  onAdd,
+  onToggleResolve,
+  onDelete,
+  onClose,
+  position,
+  currentUserId,
+}: {
+  comments: CellComment[];
+  onAdd: (text: string) => void;
+  onToggleResolve: (commentId: string) => void;
+  onDelete: (commentId: string) => void;
+  onClose: () => void;
+  position: { top: number; left: number };
+  currentUserId: string;
+}) {
+  const [text, setText] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [onClose]);
+
+  const handleSubmit = () => {
+    const trimmed = text.trim();
+    if (!trimmed) return;
+    onAdd(trimmed);
+    setText("");
+  };
+
+  return (
+    <div
+      ref={ref}
+      className="fixed z-50 bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border-2 border-amber-400 dark:border-amber-500 p-3 w-72 max-h-80 flex flex-col"
+      style={{ top: position.top, left: position.left }}
+    >
+      <div className="flex items-center justify-between mb-2">
+        <h4 className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
+          Review Comments
+        </h4>
+        <button
+          onClick={onClose}
+          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300 text-sm cursor-pointer"
+        >
+          ✕
+        </button>
+      </div>
+
+      {/* Existing comments */}
+      <div className="flex-1 overflow-y-auto space-y-2 mb-2 max-h-44">
+        {comments.length === 0 && (
+          <p className="text-[10px] text-zinc-400 italic">No comments yet.</p>
+        )}
+        {comments.map((c) => (
+          <div
+            key={c.id}
+            className={`p-2 rounded text-[11px] border ${
+              c.resolved
+                ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-800 opacity-60"
+                : "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800"
+            }`}
+          >
+            <div className="flex items-center justify-between mb-0.5">
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                {c.authorName}
+              </span>
+              <span className="text-[9px] text-zinc-400">
+                {new Date(c.createdAt).toLocaleDateString()}
+              </span>
+            </div>
+            <p
+              className={`text-zinc-700 dark:text-zinc-300 ${c.resolved ? "line-through" : ""}`}
+            >
+              {c.text}
+            </p>
+            <div className="flex gap-1 mt-1">
+              <button
+                onClick={() => onToggleResolve(c.id)}
+                className={`text-[9px] px-1.5 py-0.5 rounded cursor-pointer transition-colors ${
+                  c.resolved
+                    ? "text-amber-600 hover:bg-amber-100 dark:hover:bg-amber-900/30"
+                    : "text-emerald-600 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+                }`}
+              >
+                {c.resolved ? "↩ Reopen" : "✓ Resolve"}
+              </button>
+              {c.authorId === currentUserId && (
+                <button
+                  onClick={() => onDelete(c.id)}
+                  className="text-[9px] px-1.5 py-0.5 rounded text-red-500 hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer transition-colors"
+                >
+                  ✕ Delete
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Add comment */}
+      <div className="flex gap-1.5 border-t border-zinc-200 dark:border-zinc-700 pt-2">
+        <input
+          ref={inputRef}
+          type="text"
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              handleSubmit();
+            }
+            if (e.key === "Escape") onClose();
+          }}
+          className="flex-1 px-2 py-1 text-xs border border-zinc-200 dark:border-zinc-700 rounded focus:outline-none focus:ring-1 focus:ring-amber-500 focus:border-amber-500 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100"
+          placeholder="Add a comment..."
+        />
+        <button
+          onClick={handleSubmit}
+          disabled={!text.trim()}
+          className="px-2 py-1 text-xs font-medium text-white bg-amber-500 rounded hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+        >
+          Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Dropdown to pick a reviewer from platform users */
+function ReviewerDropdown({
+  users,
+  selectedId,
+  onSelect,
+  loading,
+  currentUserId,
+}: {
+  users: PlatformUser[];
+  selectedId: string | null;
+  onSelect: (userId: string | null) => void;
+  loading: boolean;
+  currentUserId: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [open]);
+
+  const selectedUser = users.find((u) => u.id === selectedId);
+  // Exclude current user from the list of potential reviewers
+  const eligibleUsers = users.filter((u) => u.id !== currentUserId);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`px-2.5 py-1.5 text-[10px] font-medium border rounded-md transition-colors cursor-pointer flex items-center gap-1.5 min-w-[140px] ${
+          open
+            ? "bg-amber-600 text-white border-amber-600"
+            : selectedId
+              ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/50"
+              : "text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+        }`}
+      >
+        <svg
+          className="w-3 h-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+          />
+        </svg>
+        {loading
+          ? "Loading..."
+          : selectedUser
+            ? selectedUser.name || selectedUser.email || "Reviewer"
+            : "Assign Reviewer"}
+        <svg
+          className={`w-2.5 h-2.5 ml-auto transition-transform ${open ? "rotate-180" : ""}`}
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={3}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 mt-1 z-[999] bg-white dark:bg-zinc-900 rounded-lg shadow-2xl border border-zinc-200 dark:border-zinc-700 py-1.5 w-56 max-h-60 overflow-y-auto backdrop-blur-none ring-1 ring-black/5 dark:ring-white/5">
+          <div className="px-3 py-1 text-[9px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Select Reviewer
+          </div>
+          {selectedId && (
+            <button
+              onClick={() => {
+                onSelect(null);
+                setOpen(false);
+              }}
+              className="w-full text-left px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer text-[11px] text-red-500 dark:text-red-400"
+            >
+              ✕ Remove reviewer
+            </button>
+          )}
+          {eligibleUsers.map((user) => (
+            <button
+              key={user.id}
+              onClick={() => {
+                onSelect(user.id);
+                setOpen(false);
+              }}
+              className={`w-full text-left px-3 py-1.5 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer flex items-center gap-2 ${
+                user.id === selectedId ? "bg-amber-50 dark:bg-amber-950/20" : ""
+              }`}
+            >
+              {user.image ? (
+                <img src={user.image} alt="" className="w-5 h-5 rounded-full" />
+              ) : (
+                <div className="w-5 h-5 rounded-full bg-zinc-200 dark:bg-zinc-700 flex items-center justify-center text-[9px] font-bold text-zinc-500">
+                  {(user.name || user.email || "?").charAt(0).toUpperCase()}
+                </div>
+              )}
+              <div>
+                <div className="text-[11px] font-medium text-zinc-900 dark:text-zinc-100">
+                  {user.name || "Unnamed"}
+                </div>
+                <div className="text-[9px] text-zinc-500 dark:text-zinc-400">
+                  {user.email}
+                </div>
+              </div>
+              {user.id === selectedId && (
+                <span className="ml-auto text-amber-500 text-[11px]">✓</span>
+              )}
+            </button>
+          ))}
+          {eligibleUsers.length === 0 && !loading && (
+            <div className="px-3 py-2 text-[10px] text-zinc-400 italic">
+              No other users found
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GridCell({
   cell,
   isSelected,
@@ -199,14 +490,23 @@ function GridCell({
 
 export default function MealPlanGrid() {
   const dispatch = useDispatch<AppDispatch>();
+  const { data: session } = useSession();
   const weekData = useSelector((state: RootState) => state.meal.weekData);
   const status = useSelector((state: RootState) => state.meal.status);
   const currentClientId = useSelector(
     (state: RootState) => state.meal.currentClientId,
   );
   const mealPlanId = useSelector((state: RootState) => state.meal.mealPlanId);
+  const reviewerId = useSelector((state: RootState) => state.meal.reviewerId);
+  const comments = useSelector((state: RootState) => state.meal.comments);
 
   const [saving, setSaving] = useState(false);
+  const [platformUsers, setPlatformUsers] = useState<PlatformUser[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [commentingCell, setCommentingCell] = useState<CellPosition | null>(
+    null,
+  );
+  const [commentPos, setCommentPos] = useState({ top: 0, left: 0 });
 
   const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
@@ -241,6 +541,25 @@ export default function MealPlanGrid() {
   const mealPickerRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  // Fetch platform users for reviewer dropdown
+  useEffect(() => {
+    async function fetchUsers() {
+      setUsersLoading(true);
+      try {
+        const res = await fetch("/api/users");
+        if (res.ok) {
+          const data = await res.json();
+          setPlatformUsers(data);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+    fetchUsers();
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToast(msg);
@@ -523,6 +842,118 @@ export default function MealPlanGrid() {
   const activeDays = DAYS.filter((d) => visibleDays.has(d.key));
   const activeMeals = MEAL_SLOTS.filter((m) => visibleMeals.has(m.key));
 
+  // -- Reviewer assignment handler --
+  const handleAssignReviewer = async (userId: string | null) => {
+    dispatch(setReviewerIdAction(userId));
+    if (mealPlanId) {
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, reviewerId: userId }),
+        });
+        showToast(userId ? "Reviewer assigned" : "Reviewer removed");
+      } catch {
+        showToast("Failed to assign reviewer");
+      }
+    }
+  };
+
+  // -- Comment handlers --
+  const handleOpenComments = (
+    day: DayOfWeek,
+    meal: MealType,
+    rect: DOMRect,
+  ) => {
+    setCommentingCell({ day, meal });
+    const top = Math.min(rect.bottom + 4, window.innerHeight - 340);
+    const left = Math.min(rect.left, window.innerWidth - 300);
+    setCommentPos({ top, left });
+  };
+
+  const handleAddComment = async (
+    day: DayOfWeek,
+    meal: MealType,
+    text: string,
+  ) => {
+    const newComment: CellComment = {
+      id: crypto.randomUUID(),
+      authorId: session?.user?.id || "",
+      authorName: session?.user?.name || session?.user?.email || "Unknown",
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    dispatch(addCommentAction({ day, meal, comment: newComment }));
+    // Persist to DB
+    if (mealPlanId) {
+      const key = commentKey(day, meal);
+      const cellComments = comments[key]
+        ? [...comments[key], newComment]
+        : [newComment];
+      const updatedComments = { ...comments, [key]: cellComments };
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to save comment");
+      }
+    }
+    showToast("Comment added");
+  };
+
+  const handleToggleResolve = async (
+    day: DayOfWeek,
+    meal: MealType,
+    commentId: string,
+  ) => {
+    dispatch(toggleResolveCommentAction({ day, meal, commentId }));
+    // Persist to DB
+    if (mealPlanId) {
+      const key = commentKey(day, meal);
+      const cellComments = (comments[key] || []).map((c) =>
+        c.id === commentId ? { ...c, resolved: !c.resolved } : c,
+      );
+      const updatedComments = { ...comments, [key]: cellComments };
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to update comment");
+      }
+    }
+  };
+
+  const handleDeleteComment = async (
+    day: DayOfWeek,
+    meal: MealType,
+    commentId: string,
+  ) => {
+    dispatch(deleteCommentAction({ day, meal, commentId }));
+    if (mealPlanId) {
+      const key = commentKey(day, meal);
+      const cellComments = (comments[key] || []).filter(
+        (c) => c.id !== commentId,
+      );
+      const updatedComments = { ...comments, [key]: cellComments };
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to delete comment");
+      }
+    }
+    showToast("Comment deleted");
+  };
+
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
       {/* Header Bar */}
@@ -570,6 +1001,17 @@ export default function MealPlanGrid() {
           >
             {!mealPlanId ? "unsaved" : status}
           </span>
+
+          {/* Reviewer Dropdown */}
+          {mealPlanId && (
+            <ReviewerDropdown
+              users={platformUsers}
+              selectedId={reviewerId}
+              onSelect={handleAssignReviewer}
+              loading={usersLoading}
+              currentUserId={session?.user?.id || ""}
+            />
+          )}
 
           {/* Action Buttons */}
           <div className="relative" ref={templateMenuRef}>
@@ -629,6 +1071,7 @@ export default function MealPlanGrid() {
                     </div>
                   </button>
                 ))}
+                s
               </div>
             )}
           </div>
@@ -748,8 +1191,12 @@ export default function MealPlanGrid() {
 
           {mealPlanId && status === "draft" && (
             <button
-              disabled={saving}
+              disabled={saving || !reviewerId}
               onClick={async () => {
+                if (!reviewerId) {
+                  showToast("Please assign a reviewer first");
+                  return;
+                }
                 setSaving(true);
                 try {
                   const res = await fetch("/api/meal-plans", {
@@ -759,6 +1206,7 @@ export default function MealPlanGrid() {
                       id: mealPlanId,
                       weekData,
                       status: "review",
+                      reviewerId,
                     }),
                   });
                   if (!res.ok) {
@@ -897,6 +1345,12 @@ export default function MealPlanGrid() {
             Esc
           </kbd>{" "}
           Deselect
+        </span>
+        <span>
+          <kbd className="px-1 py-0.5 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded text-[9px]">
+            Right-click
+          </kbd>{" "}
+          Comment
         </span>
 
         <div className="ml-auto flex items-center gap-2">
@@ -1210,6 +1664,11 @@ export default function MealPlanGrid() {
                       clipboard?.pos.meal === meal.key) ||
                     copiedRow === meal.key ||
                     copiedCol === day.key;
+                  const cellKey = commentKey(day.key, meal.key);
+                  const cellComments = comments[cellKey] || [];
+                  const unresolvedCount = cellComments.filter(
+                    (c) => !c.resolved,
+                  ).length;
 
                   return (
                     <td
@@ -1223,6 +1682,15 @@ export default function MealPlanGrid() {
                         ).getBoundingClientRect();
                         handleCellDoubleClick(day.key, meal.key, rect);
                       }}
+                      onContextMenu={(e) => {
+                        if (status === "review" || cellComments.length > 0) {
+                          e.preventDefault();
+                          const rect = (
+                            e.currentTarget as HTMLElement
+                          ).getBoundingClientRect();
+                          handleOpenComments(day.key, meal.key, rect);
+                        }
+                      }}
                       className={`
                         relative px-1.5 py-1 border cursor-pointer select-none transition-all duration-100
                         h-15.5 align-top text-[11px] leading-tight
@@ -1232,8 +1700,30 @@ export default function MealPlanGrid() {
                             : "border-zinc-200 dark:border-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                         }
                         ${isCopied ? "border-dashed border-indigo-400! dark:border-indigo-500! bg-indigo-100/40 dark:bg-indigo-950/30" : ""}
+                        ${unresolvedCount > 0 ? "bg-amber-50/50 dark:bg-amber-950/10" : ""}
                       `}
                     >
+                      {/* Comment indicator badge */}
+                      {cellComments.length > 0 && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const rect = (
+                              e.currentTarget.parentElement as HTMLElement
+                            ).getBoundingClientRect();
+                            handleOpenComments(day.key, meal.key, rect);
+                          }}
+                          className={`absolute top-0.5 right-0.5 w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold cursor-pointer z-20 ${
+                            unresolvedCount > 0
+                              ? "bg-amber-500 text-white"
+                              : "bg-emerald-500 text-white"
+                          }`}
+                          title={`${cellComments.length} comment(s) — right-click cell to view`}
+                        >
+                          {unresolvedCount > 0 ? unresolvedCount : "✓"}
+                        </button>
+                      )}
+
                       {!weekData[day.key][meal.key].diet &&
                       !weekData[day.key][meal.key].quantity &&
                       !weekData[day.key][meal.key].note ? (
@@ -1273,6 +1763,35 @@ export default function MealPlanGrid() {
           onSave={(cell) => updateCell(editingCell.day, editingCell.meal, cell)}
           onClose={() => setEditingCell(null)}
           position={editorPos}
+        />
+      )}
+
+      {/* Comment Popover */}
+      {commentingCell && (
+        <CommentPopover
+          comments={
+            comments[commentKey(commentingCell.day, commentingCell.meal)] || []
+          }
+          onAdd={(text) =>
+            handleAddComment(commentingCell.day, commentingCell.meal, text)
+          }
+          onToggleResolve={(commentId) =>
+            handleToggleResolve(
+              commentingCell.day,
+              commentingCell.meal,
+              commentId,
+            )
+          }
+          onDelete={(commentId) =>
+            handleDeleteComment(
+              commentingCell.day,
+              commentingCell.meal,
+              commentId,
+            )
+          }
+          onClose={() => setCommentingCell(null)}
+          position={commentPos}
+          currentUserId={session?.user?.id || ""}
         />
       )}
 

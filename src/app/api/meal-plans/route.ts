@@ -132,7 +132,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { id, weekData, status } = body;
+    const { id, weekData, status, reviewerId, comments } = body;
 
     if (!id || typeof id !== "string") {
       return NextResponse.json(
@@ -157,6 +157,8 @@ export async function PATCH(req: NextRequest) {
     const updateData: Record<string, unknown> = {};
     if (weekData !== undefined) updateData.weekData = weekData;
     if (status !== undefined) updateData.status = status;
+    if (reviewerId !== undefined) updateData.reviewerId = reviewerId;
+    if (comments !== undefined) updateData.comments = comments;
 
     const mealPlan = await prisma.mealPlan.update({
       where: { id },
