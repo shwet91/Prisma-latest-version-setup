@@ -1,6 +1,32 @@
-import { createSlice, PayloadAction, createSelector } from "@reduxjs/toolkit";
+import {
+  createSlice,
+  PayloadAction,
+  createSelector,
+  createAsyncThunk,
+} from "@reduxjs/toolkit";
 import { Client, ClientMealPlan } from "@/types/client";
 import { RootState } from "../store";
+
+// ─── Async Thunks ──────────────────────────────────────────────
+
+/** Fetch all meal plans for a specific client from the API */
+export const fetchClientMealPlans = createAsyncThunk<
+  { clientId: string; plans: ClientMealPlan[] },
+  string, // clientId
+  { rejectValue: string }
+>("clients/fetchClientMealPlans", async (clientId, { rejectWithValue }) => {
+  try {
+    const res = await fetch(`/api/meal-plans?clientId=${clientId}`);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return rejectWithValue(data.error || "Failed to fetch meal plans");
+    }
+    const plans: ClientMealPlan[] = await res.json();
+    return { clientId, plans };
+  } catch {
+    return rejectWithValue("Network error while fetching meal plans");
+  }
+});
 
 // ─── State Shape ───────────────────────────────────────────────
 
@@ -26,6 +52,9 @@ interface ClientState {
   /** Loading & error state */
   loading: boolean;
   error: string | null;
+  /** Meal plans loading state */
+  mealPlansLoading: boolean;
+  mealPlansError: string | null;
 }
 
 const initialFilters: ClientFilters = {
@@ -44,6 +73,8 @@ const initialState: ClientState = {
   filters: initialFilters,
   loading: false,
   error: null,
+  mealPlansLoading: false,
+  mealPlansError: null,
 };
 
 // ─── Slice ─────────────────────────────────────────────────────
@@ -58,9 +89,15 @@ const clientSlice = createSlice({
     setClients: (state, action: PayloadAction<Client[]>) => {
       state.byId = {};
       state.allIds = [];
+      state.mealPlansByClientId = {};
       action.payload.forEach((client) => {
-        state.byId[client.id] = client;
+        // Extract meal plans from client object into the dedicated map
+        const { mealPlans, ...clientData } = client;
+        state.byId[client.id] = clientData as Client;
         state.allIds.push(client.id);
+        if (mealPlans && mealPlans.length > 0) {
+          state.mealPlansByClientId[client.id] = mealPlans;
+        }
       });
       state.loading = false;
       state.error = null;
@@ -200,6 +237,22 @@ const clientSlice = createSlice({
       state.loading = false;
     },
   },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchClientMealPlans.pending, (state) => {
+        state.mealPlansLoading = true;
+        state.mealPlansError = null;
+      })
+      .addCase(fetchClientMealPlans.fulfilled, (state, action) => {
+        state.mealPlansLoading = false;
+        state.mealPlansByClientId[action.payload.clientId] =
+          action.payload.plans;
+      })
+      .addCase(fetchClientMealPlans.rejected, (state, action) => {
+        state.mealPlansLoading = false;
+        state.mealPlansError = action.payload ?? "Unknown error";
+      });
+  },
 });
 
 // ─── Actions ───────────────────────────────────────────────────
@@ -318,6 +371,14 @@ export const selectClientsError = (state: RootState) => state.clients.error;
 
 /** Current filters */
 export const selectClientFilters = (state: RootState) => state.clients.filters;
+
+/** Meal plans loading state */
+export const selectMealPlansLoading = (state: RootState) =>
+  state.clients.mealPlansLoading;
+
+/** Meal plans error state */
+export const selectMealPlansError = (state: RootState) =>
+  state.clients.mealPlansError;
 
 // ─── Reducer ───────────────────────────────────────────────────
 

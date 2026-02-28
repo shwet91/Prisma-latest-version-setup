@@ -9,12 +9,14 @@ import { createEmptyWeek } from "@/types/meal-plan";
 
 interface MealState {
   currentClientId: string | null;
+  mealPlanId: string | null; // null = not saved to DB yet
   weekData: WeekData;
   status: "draft" | "review" | "published";
 }
 
 const initialState: MealState = {
   currentClientId: null,
+  mealPlanId: null,
   weekData: createEmptyWeek(),
   status: "draft",
 };
@@ -86,8 +88,28 @@ const mealSlice = createSlice({
     /** Start a new meal plan for a specific client */
     startNewMealPlan(state, action: PayloadAction<string>) {
       state.currentClientId = action.payload;
+      state.mealPlanId = null;
       state.weekData = createEmptyWeek();
       state.status = "draft";
+    },
+    /** Set the meal plan ID after saving to DB */
+    setMealPlanId(state, action: PayloadAction<string>) {
+      state.mealPlanId = action.payload;
+    },
+    /** Load an existing meal plan into the editor */
+    loadExistingMealPlan(
+      state,
+      action: PayloadAction<{
+        mealPlanId: string;
+        clientId: string;
+        weekData: WeekData;
+        status: "draft" | "review" | "published";
+      }>,
+    ) {
+      state.mealPlanId = action.payload.mealPlanId;
+      state.currentClientId = action.payload.clientId;
+      state.weekData = action.payload.weekData;
+      state.status = action.payload.status;
     },
   },
 });
@@ -103,6 +125,8 @@ export const {
   setStatus,
   resetMealPlan,
   startNewMealPlan,
+  setMealPlanId,
+  loadExistingMealPlan,
 } = mealSlice.actions;
 
 export default mealSlice.reducer;

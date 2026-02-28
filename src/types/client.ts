@@ -1,3 +1,5 @@
+import type { WeekData } from "./meal-plan";
+
 export interface Client {
   id: string;
   name: string;
@@ -7,6 +9,8 @@ export interface Client {
   assignedToId: string;
   createdAt: string;
   updatedAt: string;
+  // Embedded meal plans from the API
+  mealPlans?: ClientMealPlan[];
   // Future fields (not in DB yet)
   gender?: "male" | "female" | "other";
   condition?: string;
@@ -16,8 +20,8 @@ export interface Client {
 export interface ClientMealPlan {
   id: string;
   clientId: string;
-  title: string;
   status: "draft" | "review" | "published";
-  weekStartDate: string;
+  weekData: WeekData;
   createdAt: string;
+  updatedAt: string;
 }

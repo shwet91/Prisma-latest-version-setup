@@ -74,6 +74,19 @@ export async function GET(req: NextRequest) {
     const clients = await prisma.client.findMany({
       where: { assignedToId },
       orderBy: { createdAt: "desc" },
+      include: {
+        mealPlans: {
+          select: {
+            id: true,
+            clientId: true,
+            status: true,
+            weekData: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
     });
 
     return NextResponse.json({ clients }, { status: 200 });

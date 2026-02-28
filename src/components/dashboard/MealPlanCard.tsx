@@ -1,16 +1,20 @@
 "use client";
 
+import { useState } from "react";
 import { ClientMealPlan } from "@/types/client";
 
 interface MealPlanCardProps {
   mealPlan: ClientMealPlan;
   onViewDetails: (mealPlan: ClientMealPlan) => void;
+  onDelete: (mealPlan: ClientMealPlan) => void;
 }
 
 export default function MealPlanCard({
   mealPlan,
   onViewDetails,
+  onDelete,
 }: MealPlanCardProps) {
+  const [deleting, setDeleting] = useState(false);
   const statusStyles = {
     draft: "bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400",
     review:
@@ -38,11 +42,16 @@ export default function MealPlanCard({
               />
             </svg>
             <h4 className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-              {mealPlan.title}
+              Meal Plan
             </h4>
           </div>
-          <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400">
-            <span>Week of {mealPlan.weekStartDate}</span>
+          <div className="mt-1 flex items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>
+              Created {new Date(mealPlan.createdAt).toLocaleDateString()}
+            </span>
+            <span>
+              Updated {new Date(mealPlan.updatedAt).toLocaleDateString()}
+            </span>
             <span
               className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${statusStyles[mealPlan.status]}`}
             >
@@ -50,12 +59,25 @@ export default function MealPlanCard({
             </span>
           </div>
         </div>
-        <button
-          onClick={() => onViewDetails(mealPlan)}
-          className="ml-3 shrink-0 rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
-        >
-          Basic Details
-        </button>
+        <div className="ml-3 flex shrink-0 items-center gap-2">
+          <button
+            onClick={() => onViewDetails(mealPlan)}
+            className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
+          >
+            Basic Details
+          </button>
+          <button
+            disabled={deleting}
+            onClick={async () => {
+              setDeleting(true);
+              await onDelete(mealPlan);
+              setDeleting(false);
+            }}
+            className="rounded-lg bg-red-50 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-100 disabled:opacity-50 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50"
+          >
+            {deleting ? "Deleting…" : "Delete"}
+          </button>
+        </div>
       </div>
     </div>
   );

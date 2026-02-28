@@ -25,7 +25,8 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
-    clients   Client[]
+  clients       Client[]
+  createdMealPlans MealPlan[] @relation("createdMealPlans")
 }
 
 model Account {
@@ -72,6 +73,23 @@ model Client {
 
   assignedToId String
   assignedTo   User    @relation(fields: [assignedToId], references: [id])
+
+  mealPlans   MealPlan[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MealPlan {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  createdById String
+  createdBy   User     @relation("createdMealPlans", fields: [createdById], references: [id])
+
+  status      String   @default("draft") // draft | review | published
+  weekData    Json     // stores the full WeekData object
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

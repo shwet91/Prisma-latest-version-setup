@@ -3,6 +3,8 @@
 import ProfileButton from "./ProfileButton";
 import SearchBar from "./SearchBar";
 import CreateClientButton from "./CreateClientButton";
+import { useSelector } from "react-redux";
+import { selectFilteredClients } from "@/store/features/clientSlice";
 
 interface DashboardNavbarProps {
   userName: string;
@@ -19,8 +21,10 @@ export default function DashboardNavbar({
   onSearch,
   onCreateClient,
 }: DashboardNavbarProps) {
+  const clients = useSelector(selectFilteredClients);
   return (
     <nav className="sticky top-0 z-40 border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
+      <button onClick={() => console.log("btn clicked :" , clients)}>Click me</button>
       <div className="mx-auto flex h-16 max-w-screen-2xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
         {/* Left: Profile */}
         <div className="shrink-0">

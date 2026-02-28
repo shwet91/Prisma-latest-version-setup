@@ -11,6 +11,7 @@ import {
   duplicateDay as duplicateDayAction,
   clearAll as clearAllAction,
   setStatus as setStatusAction,
+  setMealPlanId,
 } from "@/store/features/mealSlice";
 import type {
   MealCell,
@@ -199,6 +200,9 @@ export default function MealPlanGrid() {
   const currentClientId = useSelector(
     (state: RootState) => state.meal.currentClientId,
   );
+  const mealPlanId = useSelector((state: RootState) => state.meal.mealPlanId);
+
+  const [saving, setSaving] = useState(false);
 
   const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
@@ -520,7 +524,6 @@ export default function MealPlanGrid() {
       {/* Header Bar */}
       <div className="flex-none flex items-center justify-between px-4 py-2.5 bg-white border-b border-orange-100 shadow-sm">
         <div className="flex items-center gap-3">
-          <button onClick={() => console.log("btn clicked :" , weekData , currentClientId)} >CLick me</button>
           <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
@@ -552,14 +555,16 @@ export default function MealPlanGrid() {
           {/* Status Badge */}
           <span
             className={`px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wider ${
-              status === "draft"
-                ? "bg-orange-100 text-orange-700"
-                : status === "review"
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-green-100 text-green-700"
+              !mealPlanId
+                ? "bg-gray-100 text-gray-600"
+                : status === "draft"
+                  ? "bg-orange-100 text-orange-700"
+                  : status === "review"
+                    ? "bg-yellow-100 text-yellow-700"
+                    : "bg-green-100 text-green-700"
             }`}
           >
-            {status}
+            {!mealPlanId ? "unsaved" : status}
           </span>
 
           {/* Action Buttons */}
@@ -684,24 +689,170 @@ export default function MealPlanGrid() {
 
           <div className="w-px h-6 bg-orange-200 mx-1" />
 
-          <button
-            onClick={() => dispatch(setStatusAction("draft"))}
-            className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "draft" ? "bg-orange-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
-          >
-            Draft
-          </button>
-          <button
-            onClick={() => dispatch(setStatusAction("review"))}
-            className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "review" ? "bg-yellow-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
-          >
-            Review
-          </button>
-          <button
-            onClick={() => dispatch(setStatusAction("published"))}
-            className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "published" ? "bg-green-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
-          >
-            Publish
-          </button>
+          {/* Conditional workflow buttons */}
+          {!mealPlanId && (
+            <button
+              disabled={saving || !currentClientId}
+              onClick={async () => {
+                if (!currentClientId) {
+                  showToast("No client selected");
+                  return;
+                }
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/meal-plans", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      clientId: currentClientId,
+                      weekData,
+                    }),
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    showToast(err.error || "Failed to save");
+                    return;
+                  }
+                  const data = await res.json();
+                  dispatch(setMealPlanId(data.id));
+                  dispatch(setStatusAction("draft"));
+                  showToast("Meal plan saved!");
+                } catch {
+                  showToast("Network error");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="px-3 py-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          )}
+
+          {mealPlanId && status === "draft" && (
+            <button
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/meal-plans", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      id: mealPlanId,
+                      weekData,
+                      status: "review",
+                    }),
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    showToast(err.error || "Failed to submit");
+                    return;
+                  }
+                  dispatch(setStatusAction("review"));
+                  showToast("Submitted for review!");
+                } catch {
+                  showToast("Network error");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="px-3 py-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer bg-yellow-500 text-white hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              {saving ? "Submitting..." : "Submit for Review"}
+            </button>
+          )}
+
+          {mealPlanId && status === "review" && (
+            <button
+              disabled={saving}
+              onClick={async () => {
+                setSaving(true);
+                try {
+                  const res = await fetch("/api/meal-plans", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      id: mealPlanId,
+                      status: "published",
+                    }),
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    showToast(err.error || "Failed to publish");
+                    return;
+                  }
+                  dispatch(setStatusAction("published"));
+                  showToast("Meal plan published!");
+                } catch {
+                  showToast("Network error");
+                } finally {
+                  setSaving(false);
+                }
+              }}
+              className="px-3 py-1.5 text-[10px] font-semibold rounded-md transition-colors cursor-pointer bg-green-500 text-white hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              {saving ? "Publishing..." : "Publish"}
+            </button>
+          )}
+
+          {mealPlanId && status === "published" && (
+            <span className="px-3 py-1.5 text-[10px] font-semibold rounded-md bg-green-100 text-green-700 flex items-center gap-1">
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+              Published
+            </span>
+          )}
         </div>
       </div>
 

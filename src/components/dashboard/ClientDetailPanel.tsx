@@ -11,12 +11,14 @@ interface ClientDetailPanelProps {
   client: Client | null;
   mealPlans: ClientMealPlan[];
   onViewMealPlanDetails: (mealPlan: ClientMealPlan) => void;
+  onDeleteMealPlan: (mealPlan: ClientMealPlan) => void;
 }
 
 export default function ClientDetailPanel({
   client,
   mealPlans,
   onViewMealPlanDetails,
+  onDeleteMealPlan,
 }: ClientDetailPanelProps) {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
@@ -173,6 +175,7 @@ export default function ClientDetailPanel({
                 key={plan.id}
                 mealPlan={plan}
                 onViewDetails={onViewMealPlanDetails}
+                onDelete={onDeleteMealPlan}
               />
             ))}
           </div>

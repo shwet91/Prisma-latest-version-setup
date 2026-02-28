@@ -1,12 +1,15 @@
 "use client";
 
 import { useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useSelector, useDispatch } from "react-redux";
 import { ClientMealPlan } from "@/types/client";
+import type { AppDispatch } from "@/store/store";
 import { DashboardNavbar } from "@/components/dashboard";
 import { ClientList } from "@/components/dashboard";
 import { ClientDetailPanel } from "@/components/dashboard";
 import CreateClientModal from "./CreateClientModal";
+import { loadExistingMealPlan } from "@/store/features/mealSlice";
 import {
   selectFilteredClients,
   selectSelectedClient,
@@ -15,6 +18,7 @@ import {
   setSearchQuery,
   selectClientsLoading,
   selectClientsError,
+  removeMealPlan,
 } from "@/store/features/clientSlice";
 
 import { useState } from "react";
@@ -30,7 +34,8 @@ export default function DashboardShell({
   userImage,
   userEmail,
 }: DashboardShellProps) {
-  const dispatch = useDispatch();
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const filteredClients = useSelector(selectFilteredClients);
   const selectedClient = useSelector(selectSelectedClient);
   const selectedMealPlans = useSelector(selectSelectedClientMealPlans);
@@ -62,8 +67,32 @@ export default function DashboardShell({
   );
 
   const handleViewMealPlanDetails = (mealPlan: ClientMealPlan) => {
-    // TODO: Navigate to meal plan detail / editor
-    console.log("View meal plan:", mealPlan.id);
+    dispatch(
+      loadExistingMealPlan({
+        mealPlanId: mealPlan.id,
+        clientId: mealPlan.clientId,
+        weekData: mealPlan.weekData,
+        status: mealPlan.status,
+      }),
+    );
+    router.push("/editor");
+  };
+
+  const handleDeleteMealPlan = async (mealPlan: ClientMealPlan) => {
+    try {
+      const res = await fetch(`/api/meal-plans/${mealPlan.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        console.error("Failed to delete meal plan");
+        return;
+      }
+      dispatch(
+        removeMealPlan({ clientId: mealPlan.clientId, planId: mealPlan.id }),
+      );
+    } catch (err) {
+      console.error("Error deleting meal plan:", err);
+    }
   };
 
   return (
@@ -145,6 +174,7 @@ export default function DashboardShell({
             client={selectedClient}
             mealPlans={selectedMealPlans}
             onViewMealPlanDetails={handleViewMealPlanDetails}
+            onDeleteMealPlan={handleDeleteMealPlan}
           />
         </main>
       </div>
