@@ -1,13 +1,24 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useSelector, useDispatch } from "react-redux";
+import type { RootState, AppDispatch } from "@/store/store";
+import {
+  updateCell as updateCellAction,
+  setWeekData as setWeekDataAction,
+  pasteRow as pasteRowAction,
+  pasteColumn as pasteColumnAction,
+  duplicateDay as duplicateDayAction,
+  clearAll as clearAllAction,
+  setStatus as setStatusAction,
+} from "@/store/features/mealSlice";
 import type {
   MealCell,
   DayOfWeek,
   MealType,
   WeekData,
 } from "@/types/meal-plan";
-import { DAYS, MEAL_SLOTS, createEmptyWeek } from "@/types/meal-plan";
+import { DAYS, MEAL_SLOTS } from "@/types/meal-plan";
 import { MEAL_TEMPLATES, getTemplateWeekData } from "@/lib/templates";
 
 interface CellPosition {
@@ -182,7 +193,13 @@ function GridCell({
 }
 
 export default function MealPlanGrid() {
-  const [weekData, setWeekData] = useState<WeekData>(createEmptyWeek);
+  const dispatch = useDispatch<AppDispatch>();
+  const weekData = useSelector((state: RootState) => state.meal.weekData);
+  const status = useSelector((state: RootState) => state.meal.status);
+  const currentClientId = useSelector(
+    (state: RootState) => state.meal.currentClientId,
+  );
+
   const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
   const [editorPos, setEditorPos] = useState({ top: 0, left: 0 });
@@ -190,9 +207,6 @@ export default function MealPlanGrid() {
     pos: CellPosition;
     cell: MealCell;
   } | null>(null);
-  const [status, setStatus] = useState<"draft" | "review" | "published">(
-    "draft",
-  );
   const [copiedRow, setCopiedRow] = useState<MealType | null>(null);
   const [copiedCol, setCopiedCol] = useState<DayOfWeek | null>(null);
   // Store full row/column data so paste works correctly
@@ -227,16 +241,10 @@ export default function MealPlanGrid() {
 
   const updateCell = useCallback(
     (day: DayOfWeek, meal: MealType, cell: MealCell) => {
-      setWeekData((prev) => ({
-        ...prev,
-        [day]: {
-          ...prev[day],
-          [meal]: cell,
-        },
-      }));
+      dispatch(updateCellAction({ day, meal, cell }));
       showToast("Auto-saved");
     },
-    [showToast],
+    [dispatch, showToast],
   );
 
   const handleCellClick = useCallback((day: DayOfWeek, meal: MealType) => {
@@ -390,16 +398,7 @@ export default function MealPlanGrid() {
 
   const pasteRow = (targetMeal: MealType) => {
     if (!copiedRowData) return;
-    setWeekData((prev) => {
-      const next = { ...prev };
-      for (const day of DAYS) {
-        next[day.key] = {
-          ...next[day.key],
-          [targetMeal]: { ...copiedRowData[day.key] },
-        };
-      }
-      return next;
-    });
+    dispatch(pasteRowAction({ targetMeal, rowData: copiedRowData }));
     showToast(
       `Pasted "${MEAL_SLOTS.find((m) => m.key === copiedRow)?.label}" → "${MEAL_SLOTS.find((m) => m.key === targetMeal)?.label}"`,
     );
@@ -424,38 +423,28 @@ export default function MealPlanGrid() {
 
   const pasteColumn = (targetDay: DayOfWeek) => {
     if (!copiedColData) return;
-    setWeekData((prev) => {
-      const next = { ...prev };
-      next[targetDay] = { ...next[targetDay] };
-      for (const meal of MEAL_SLOTS) {
-        next[targetDay][meal.key] = { ...copiedColData[meal.key] };
-      }
-      return next;
-    });
+    dispatch(pasteColumnAction({ targetDay, colData: copiedColData }));
     showToast(
       `Pasted "${DAYS.find((d) => d.key === copiedCol)?.short}" → "${DAYS.find((d) => d.key === targetDay)?.short}"`,
     );
   };
 
   const duplicateDay = (fromDay: DayOfWeek, toDay: DayOfWeek) => {
-    setWeekData((prev) => ({
-      ...prev,
-      [toDay]: JSON.parse(JSON.stringify(prev[fromDay])),
-    }));
+    dispatch(duplicateDayAction({ fromDay, toDay }));
     showToast(
       `${DAYS.find((d) => d.key === fromDay)?.short} → ${DAYS.find((d) => d.key === toDay)?.short}`,
     );
   };
 
   const clearAll = () => {
-    setWeekData(createEmptyWeek());
+    dispatch(clearAllAction());
     showToast("All cells cleared");
   };
 
   const loadTemplate = (templateId: string) => {
-    const weekData = getTemplateWeekData(templateId);
-    if (weekData) {
-      setWeekData(weekData);
+    const data = getTemplateWeekData(templateId);
+    if (data) {
+      dispatch(setWeekDataAction(data));
       const name = MEAL_TEMPLATES.find((t) => t.id === templateId)?.name;
       showToast(`Template "${name}" loaded`);
     }
@@ -531,6 +520,7 @@ export default function MealPlanGrid() {
       {/* Header Bar */}
       <div className="flex-none flex items-center justify-between px-4 py-2.5 bg-white border-b border-orange-100 shadow-sm">
         <div className="flex items-center gap-3">
+          <button onClick={() => console.log("btn clicked :" , weekData , currentClientId)} >CLick me</button>
           <div className="w-8 h-8 bg-orange-500 rounded-lg flex items-center justify-center">
             <svg
               className="w-5 h-5 text-white"
@@ -551,7 +541,9 @@ export default function MealPlanGrid() {
               Weekly Meal Plan
             </h1>
             <p className="text-[10px] text-gray-400">
-              Client: Ananya Sharma · PCOS Management
+              {currentClientId
+                ? `Client ID: ${currentClientId}`
+                : "No client selected"}
             </p>
           </div>
         </div>
@@ -660,7 +652,9 @@ export default function MealPlanGrid() {
           {copiedPlan && (
             <button
               onClick={() => {
-                setWeekData(JSON.parse(JSON.stringify(copiedPlan)));
+                dispatch(
+                  setWeekDataAction(JSON.parse(JSON.stringify(copiedPlan))),
+                );
                 showToast("Meal plan pasted!");
               }}
               className="px-2.5 py-1.5 text-[10px] font-medium text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 transition-colors cursor-pointer flex items-center gap-1 animate-pulse"
@@ -691,19 +685,19 @@ export default function MealPlanGrid() {
           <div className="w-px h-6 bg-orange-200 mx-1" />
 
           <button
-            onClick={() => setStatus("draft")}
+            onClick={() => dispatch(setStatusAction("draft"))}
             className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "draft" ? "bg-orange-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
           >
             Draft
           </button>
           <button
-            onClick={() => setStatus("review")}
+            onClick={() => dispatch(setStatusAction("review"))}
             className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "review" ? "bg-yellow-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
           >
             Review
           </button>
           <button
-            onClick={() => setStatus("published")}
+            onClick={() => dispatch(setStatusAction("published"))}
             className={`px-2 py-1.5 text-[10px] font-medium rounded-md transition-colors cursor-pointer ${status === "published" ? "bg-green-500 text-white" : "text-gray-500 hover:bg-gray-100"}`}
           >
             Publish

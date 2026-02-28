@@ -1,5 +1,9 @@
 "use client";
 
+import { useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import type { AppDispatch } from "@/store/store";
+import { startNewMealPlan } from "@/store/features/mealSlice";
 import { Client, ClientMealPlan } from "@/types/client";
 import MealPlanCard from "./MealPlanCard";
 
@@ -14,6 +18,15 @@ export default function ClientDetailPanel({
   mealPlans,
   onViewMealPlanDetails,
 }: ClientDetailPanelProps) {
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
+
+  const handleCreateNewMeal = () => {
+    if (!client) return;
+    dispatch(startNewMealPlan(client.id));
+    router.push("/editor");
+  };
+
   if (!client) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-8 text-center">
@@ -121,9 +134,30 @@ export default function ClientDetailPanel({
           <h2 className="text-sm font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
             Meal Plans
           </h2>
-          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400">
-            {mealPlans.length}
-          </span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleCreateNewMeal}
+              className="inline-flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white shadow-sm hover:bg-indigo-700 transition-colors cursor-pointer"
+            >
+              <svg
+                className="h-3.5 w-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth={2}
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M12 4v16m8-8H4"
+                />
+              </svg>
+              Create New Meal
+            </button>
+            <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs font-medium text-indigo-600 dark:bg-indigo-950/30 dark:text-indigo-400">
+              {mealPlans.length}
+            </span>
+          </div>
         </div>
 
         {mealPlans.length === 0 ? (
