@@ -25,6 +25,7 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+    clients   Client[]
 }
 
 model Account {
@@ -59,4 +60,19 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+}
+
+
+model Client {
+  id          String   @id @default(cuid())
+  name        String
+  phoneNo     String?
+  email       String?
+  age         Int?
+
+  assignedToId String
+  assignedTo   User    @relation(fields: [assignedToId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
