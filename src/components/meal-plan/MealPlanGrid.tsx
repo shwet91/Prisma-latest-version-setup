@@ -17,6 +17,7 @@ import {
   addComment as addCommentAction,
   toggleResolveComment as toggleResolveCommentAction,
   deleteComment as deleteCommentAction,
+  loadExistingMealPlan,
 } from "@/store/features/mealSlice";
 import type {
   MealCell,
@@ -25,7 +26,12 @@ import type {
   WeekData,
   CellComment,
 } from "@/types/meal-plan";
-import { DAYS, MEAL_SLOTS, commentKey } from "@/types/meal-plan";
+import {
+  DAYS,
+  MEAL_SLOTS,
+  commentKey,
+  GENERAL_COMMENT_KEY,
+} from "@/types/meal-plan";
 import { MEAL_TEMPLATES, getTemplateWeekData } from "@/lib/templates";
 
 interface PlatformUser {
@@ -157,6 +163,7 @@ function CommentPopover({
   onClose,
   position,
   currentUserId,
+  title = "Review Comments",
 }: {
   comments: CellComment[];
   onAdd: (text: string) => void;
@@ -165,6 +172,7 @@ function CommentPopover({
   onClose: () => void;
   position: { top: number; left: number };
   currentUserId: string;
+  title?: string;
 }) {
   const [text, setText] = useState("");
   const ref = useRef<HTMLDivElement>(null);
@@ -199,7 +207,7 @@ function CommentPopover({
     >
       <div className="flex items-center justify-between mb-2">
         <h4 className="text-[11px] font-bold text-amber-700 dark:text-amber-400 uppercase tracking-wider">
-          Review Comments
+          {title}
         </h4>
         <button
           onClick={onClose}
@@ -507,6 +515,12 @@ export default function MealPlanGrid() {
     null,
   );
   const [commentPos, setCommentPos] = useState({ top: 0, left: 0 });
+  const [showGeneralComments, setShowGeneralComments] = useState(false);
+  const [generalCommentPos, setGeneralCommentPos] = useState({
+    top: 0,
+    left: 0,
+  });
+  const generalCommentBtnRef = useRef<HTMLButtonElement>(null);
 
   const [selectedCell, setSelectedCell] = useState<CellPosition | null>(null);
   const [editingCell, setEditingCell] = useState<CellPosition | null>(null);
@@ -541,6 +555,20 @@ export default function MealPlanGrid() {
   const mealPickerRef = useRef<HTMLDivElement>(null);
   const templateMenuRef = useRef<HTMLDivElement>(null);
   const tableRef = useRef<HTMLTableElement>(null);
+
+  // Hydrate meal plan from localStorage (when opened in a new tab)
+  useEffect(() => {
+    const stored = localStorage.getItem("pendingMealPlan");
+    if (stored) {
+      try {
+        const data = JSON.parse(stored);
+        dispatch(loadExistingMealPlan(data));
+      } catch {
+        // ignore malformed data
+      }
+      localStorage.removeItem("pendingMealPlan");
+    }
+  }, [dispatch]);
 
   // Fetch platform users for reviewer dropdown
   useEffect(() => {
@@ -954,6 +982,86 @@ export default function MealPlanGrid() {
     showToast("Comment deleted");
   };
 
+  // -- General (overall) plan comment handlers --
+  const generalComments = comments[GENERAL_COMMENT_KEY] || [];
+  const unresolvedGeneralCount = generalComments.filter(
+    (c) => !c.resolved,
+  ).length;
+
+  const handleOpenGeneralComments = () => {
+    if (generalCommentBtnRef.current) {
+      const rect = generalCommentBtnRef.current.getBoundingClientRect();
+      setGeneralCommentPos({
+        top: Math.min(rect.bottom + 4, window.innerHeight - 340),
+        left: Math.min(rect.left, window.innerWidth - 300),
+      });
+    }
+    setShowGeneralComments(true);
+  };
+
+  const handleAddGeneralComment = async (text: string) => {
+    const newComment: CellComment = {
+      id: crypto.randomUUID(),
+      authorId: session?.user?.id || "",
+      authorName: session?.user?.name || session?.user?.email || "Unknown",
+      text,
+      createdAt: new Date().toISOString(),
+    };
+    const updatedList = [...generalComments, newComment];
+    const updatedComments = { ...comments, [GENERAL_COMMENT_KEY]: updatedList };
+    // Optimistic update via direct setComments (reuse existing action)
+    dispatch({ type: "meal/setComments", payload: updatedComments });
+    if (mealPlanId) {
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to save comment");
+      }
+    }
+    showToast("Comment added");
+  };
+
+  const handleToggleResolveGeneral = async (commentId: string) => {
+    const updatedList = generalComments.map((c) =>
+      c.id === commentId ? { ...c, resolved: !c.resolved } : c,
+    );
+    const updatedComments = { ...comments, [GENERAL_COMMENT_KEY]: updatedList };
+    dispatch({ type: "meal/setComments", payload: updatedComments });
+    if (mealPlanId) {
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to update comment");
+      }
+    }
+  };
+
+  const handleDeleteGeneralComment = async (commentId: string) => {
+    const updatedList = generalComments.filter((c) => c.id !== commentId);
+    const updatedComments = { ...comments, [GENERAL_COMMENT_KEY]: updatedList };
+    dispatch({ type: "meal/setComments", payload: updatedComments });
+    if (mealPlanId) {
+      try {
+        await fetch("/api/meal-plans", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ id: mealPlanId, comments: updatedComments }),
+        });
+      } catch {
+        showToast("Failed to delete comment");
+      }
+    }
+    showToast("Comment deleted");
+  };
+
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-zinc-950 overflow-hidden">
       {/* Header Bar */}
@@ -1011,6 +1119,47 @@ export default function MealPlanGrid() {
               loading={usersLoading}
               currentUserId={session?.user?.id || ""}
             />
+          )}
+
+          {/* Plan Comments Button */}
+          {mealPlanId && (
+            <button
+              ref={generalCommentBtnRef}
+              onClick={handleOpenGeneralComments}
+              className={`px-2.5 py-1.5 text-[10px] font-medium border rounded-md transition-colors cursor-pointer flex items-center gap-1 ${
+                showGeneralComments
+                  ? "bg-amber-600 text-white border-amber-600"
+                  : unresolvedGeneralCount > 0
+                    ? "text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/50"
+                    : "text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-700"
+              }`}
+            >
+              <svg
+                className="w-3 h-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                />
+              </svg>
+              Plan Comments
+              {generalComments.length > 0 && (
+                <span
+                  className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold ${
+                    unresolvedGeneralCount > 0
+                      ? "bg-amber-500 text-white"
+                      : "bg-emerald-500 text-white"
+                  }`}
+                >
+                  {unresolvedGeneralCount > 0 ? unresolvedGeneralCount : "✓"}
+                </span>
+              )}
+            </button>
           )}
 
           {/* Action Buttons */}
@@ -1792,6 +1941,20 @@ export default function MealPlanGrid() {
           onClose={() => setCommentingCell(null)}
           position={commentPos}
           currentUserId={session?.user?.id || ""}
+        />
+      )}
+
+      {/* General Plan Comment Popover */}
+      {showGeneralComments && (
+        <CommentPopover
+          comments={generalComments}
+          onAdd={handleAddGeneralComment}
+          onToggleResolve={handleToggleResolveGeneral}
+          onDelete={handleDeleteGeneralComment}
+          onClose={() => setShowGeneralComments(false)}
+          position={generalCommentPos}
+          currentUserId={session?.user?.id || ""}
+          title="Plan Comments"
         />
       )}
 

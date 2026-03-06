@@ -64,7 +64,7 @@ export default function MealPlanCard({
             onClick={() => onViewDetails(mealPlan)}
             className="rounded-lg bg-indigo-50 px-3 py-1.5 text-xs font-medium text-indigo-600 transition-colors hover:bg-indigo-100 dark:bg-indigo-950/30 dark:text-indigo-400 dark:hover:bg-indigo-950/50"
           >
-            Basic Details
+            Editor
           </button>
           <button
             disabled={deleting}

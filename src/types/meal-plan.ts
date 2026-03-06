@@ -22,8 +22,10 @@ export interface CellComment {
   resolved?: boolean;
 }
 
-/** Comments keyed by "day::meal" e.g. "monday::breakfast" */
+/** Comments keyed by "day::meal" e.g. "monday::breakfast", or "general" for overall plan comments */
 export type MealPlanComments = Record<string, CellComment[]>;
+
+export const GENERAL_COMMENT_KEY = "general";
 
 export function commentKey(day: DayOfWeek, meal: MealType): string {
   return `${day}::${meal}`;

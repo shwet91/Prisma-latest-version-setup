@@ -9,7 +9,6 @@ import { DashboardNavbar } from "@/components/dashboard";
 import { ClientList } from "@/components/dashboard";
 import { ClientDetailPanel } from "@/components/dashboard";
 import CreateClientModal from "./CreateClientModal";
-import { loadExistingMealPlan } from "@/store/features/mealSlice";
 import {
   selectFilteredClients,
   selectSelectedClient,
@@ -67,15 +66,17 @@ export default function DashboardShell({
   );
 
   const handleViewMealPlanDetails = (mealPlan: ClientMealPlan) => {
-    dispatch(
-      loadExistingMealPlan({
+    // Save meal plan data to localStorage so the new tab can hydrate it
+    localStorage.setItem(
+      "pendingMealPlan",
+      JSON.stringify({
         mealPlanId: mealPlan.id,
         clientId: mealPlan.clientId,
         weekData: mealPlan.weekData,
         status: mealPlan.status,
       }),
     );
-    router.push("/editor");
+    window.open("/editor", "_blank");
   };
 
   const handleDeleteMealPlan = async (mealPlan: ClientMealPlan) => {
